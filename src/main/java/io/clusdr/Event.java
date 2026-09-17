@@ -4,7 +4,7 @@ import java.time.Instant;
 import java.util.Arrays;
 import java.util.Objects;
 
-/** A Watch event. */
+/** A Watch event. Crash is {@code member.dead}; leave is {@code member.left}. */
 public final class Event {
   private final String type;
   private final String source;
@@ -20,6 +20,7 @@ public final class Event {
     this.seq = seq;
   }
 
+  /** Type string: {@code member.join}, {@code member.dead}, {@code member.left}, {@code leader.changed}, {@code custom.<topic>}, … */
   public String type() {
     return type;
   }

@@ -26,6 +26,7 @@ public final class Member {
     return address;
   }
 
+  /** Liveness: {@code alive} or {@code dead}. A left id is gone from {@link Cluster#members()}. */
   public String status() {
     return status;
   }

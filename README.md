@@ -31,7 +31,7 @@ Not a database, queue, or Kubernetes. Wire API is **v1alpha1**. TLS is on by def
 <dependency>
   <groupId>io.clusdr</groupId>
   <artifactId>clusdr</artifactId>
-  <version>0.1.4</version>
+  <version>0.2.0</version>
 </dependency>
 ```
 
