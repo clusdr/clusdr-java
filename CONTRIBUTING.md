@@ -28,11 +28,11 @@ CI lints PR commits. Prefer squash-merge; the squash title must stay conventiona
 
 ## Requirements
 
-Java 17+. Maven 3.9+.
+Java 17+. Maven 3.9+. [Buf](https://buf.build/docs/cli/installation) to refresh vendored proto.
 
 ```bash
-make proto    # copy .proto from ../clusdr/proto and inject java_package
+make proto    # export buf.build/clusdr/api, then inject java_package
 mvn test
 ```
 
-`.proto` files live under `proto/`. Do not hand-edit the RPC shapes; copy from the daemon repo. `java_package` / `java_multiple_files` options are injected by `make proto`. The public API is the Java wrapper, not the generated gRPC shapes.
+`.proto` files live under `proto/`. Do not hand-edit the RPC shapes; export from [`buf.build/clusdr/api`](https://buf.build/clusdr/api) (or sibling `../clusdr/proto/api`). `java_package` / `java_multiple_files` are injected after export so they are not part of the shared wire module. The public API is the Java wrapper, not the generated gRPC shapes.

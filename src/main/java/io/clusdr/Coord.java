@@ -1,14 +1,16 @@
 package io.clusdr;
 
-import io.clusdr.v1alpha1.GrantLeaseRequest;
-import io.clusdr.v1alpha1.GrantLeaseResponse;
+import io.clusdr.v1alpha1.GrantRequest;
+import io.clusdr.v1alpha1.GrantResponse;
 import io.clusdr.v1alpha1.LeaseServiceGrpc;
 import io.clusdr.v1alpha1.LockRequest;
 import io.clusdr.v1alpha1.LockResponse;
 import io.clusdr.v1alpha1.LockServiceGrpc;
-import io.clusdr.v1alpha1.RenewLeaseRequest;
-import io.clusdr.v1alpha1.RenewLockRequest;
-import io.clusdr.v1alpha1.RevokeLeaseRequest;
+import io.clusdr.v1alpha1.LeaseServiceRenewRequest;
+import io.clusdr.v1alpha1.LockServiceRenewRequest;
+import io.clusdr.v1alpha1.RevokeRequest;
+import io.clusdr.v1alpha1.TryLockRequest;
+import io.clusdr.v1alpha1.TryLockResponse;
 import io.clusdr.v1alpha1.UnlockRequest;
 import io.grpc.Status;
 import java.time.Duration;
@@ -69,14 +71,14 @@ final class Coord {
       return Optional.of(existing);
     }
     long deadline = host.deadline(timeout);
-    LockResponse resp;
+    TryLockResponse resp;
     try {
       resp =
           Retry.retry(
               () ->
                   lockStub(deadline)
                       .tryLock(
-                          LockRequest.newBuilder()
+                          TryLockRequest.newBuilder()
                               .setName(name)
                               .setHolder(host.holder())
                               .setTtlMs(Grants.ttlMs(ttl))
@@ -107,14 +109,14 @@ final class Coord {
       return existing;
     }
     long deadline = host.deadline(timeout);
-    GrantLeaseResponse resp;
+    GrantResponse resp;
     try {
       resp =
           Retry.retry(
               () ->
                   leaseStub(deadline)
                       .grant(
-                          GrantLeaseRequest.newBuilder()
+                          GrantRequest.newBuilder()
                               .setName(name)
                               .setOwner(host.holder())
                               .setTtlMs(Grants.ttlMs(ttl))
@@ -148,7 +150,7 @@ final class Coord {
               () ->
                   leaseStub(deadline)
                       .renew(
-                          RenewLeaseRequest.newBuilder()
+                          LeaseServiceRenewRequest.newBuilder()
                               .setName(ls.name())
                               .setOwner(ls.owner())
                               .setFencingToken(ls.token())
@@ -212,12 +214,22 @@ final class Coord {
   }
 
   private Lock adoptLock(LockResponse resp, String name, Duration ttl) {
+    return adoptLock(
+        name, resp.getHolder(), resp.getFencingToken(), resp.getDeadlineUnixMs(), ttl);
+  }
+
+  private Lock adoptLock(TryLockResponse resp, String name, Duration ttl) {
+    return adoptLock(
+        name, resp.getHolder(), resp.getFencingToken(), resp.getDeadlineUnixMs(), ttl);
+  }
+
+  private Lock adoptLock(String name, String holder, long token, long deadlineUnixMs, Duration ttl) {
     Lock lk =
         new Lock(
             name,
-            resp.getHolder().isEmpty() ? host.holder() : resp.getHolder(),
-            resp.getFencingToken(),
-            Grants.fromMs(resp.getDeadlineUnixMs()));
+            holder.isEmpty() ? host.holder() : holder,
+            token,
+            Grants.fromMs(deadlineUnixMs));
     synchronized (mu) {
       Lock cur = held.get(name);
       if (cur != null && cur.token() == lk.token()) {
@@ -229,7 +241,7 @@ final class Coord {
     return lk;
   }
 
-  private Lease adoptLease(GrantLeaseResponse resp, String name, Duration ttl) {
+  private Lease adoptLease(GrantResponse resp, String name, Duration ttl) {
     Lease ls =
         new Lease(
             name,
@@ -287,7 +299,7 @@ final class Coord {
               () ->
                   leaseStub(deadline)
                       .revoke(
-                          RevokeLeaseRequest.newBuilder()
+                          RevokeRequest.newBuilder()
                               .setName(ls.name())
                               .setOwner(ls.owner())
                               .setFencingToken(ls.token())
@@ -339,7 +351,7 @@ final class Coord {
                     host.lockBlocking()
                         .withDeadlineAfter(host.requestTimeout().toMillis(), TimeUnit.MILLISECONDS)
                         .renew(
-                            RenewLockRequest.newBuilder()
+                            LockServiceRenewRequest.newBuilder()
                                 .setName(lk.name())
                                 .setHolder(lk.holder())
                                 .setFencingToken(lk.token())
@@ -377,7 +389,7 @@ final class Coord {
                     host.leaseBlocking()
                         .withDeadlineAfter(host.requestTimeout().toMillis(), TimeUnit.MILLISECONDS)
                         .renew(
-                            RenewLeaseRequest.newBuilder()
+                            LeaseServiceRenewRequest.newBuilder()
                                 .setName(ls.name())
                                 .setOwner(ls.owner())
                                 .setFencingToken(ls.token())

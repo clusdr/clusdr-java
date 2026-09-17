@@ -2,8 +2,8 @@ package io.clusdr;
 
 import com.google.protobuf.ByteString;
 import io.clusdr.v1alpha1.EventServiceGrpc;
-import io.clusdr.v1alpha1.GrantLeaseRequest;
-import io.clusdr.v1alpha1.GrantLeaseResponse;
+import io.clusdr.v1alpha1.GrantRequest;
+import io.clusdr.v1alpha1.GrantResponse;
 import io.clusdr.v1alpha1.HealthRequest;
 import io.clusdr.v1alpha1.HealthResponse;
 import io.clusdr.v1alpha1.HealthServiceGrpc;
@@ -13,16 +13,18 @@ import io.clusdr.v1alpha1.ListMembersResponse;
 import io.clusdr.v1alpha1.LockRequest;
 import io.clusdr.v1alpha1.LockResponse;
 import io.clusdr.v1alpha1.LockServiceGrpc;
+import io.clusdr.v1alpha1.TryLockRequest;
+import io.clusdr.v1alpha1.TryLockResponse;
 import io.clusdr.v1alpha1.Member;
 import io.clusdr.v1alpha1.MembershipServiceGrpc;
 import io.clusdr.v1alpha1.PublishEventRequest;
 import io.clusdr.v1alpha1.PublishEventResponse;
-import io.clusdr.v1alpha1.RenewLeaseRequest;
-import io.clusdr.v1alpha1.RenewLeaseResponse;
-import io.clusdr.v1alpha1.RenewLockRequest;
-import io.clusdr.v1alpha1.RenewLockResponse;
-import io.clusdr.v1alpha1.RevokeLeaseRequest;
-import io.clusdr.v1alpha1.RevokeLeaseResponse;
+import io.clusdr.v1alpha1.LeaseServiceRenewRequest;
+import io.clusdr.v1alpha1.LeaseServiceRenewResponse;
+import io.clusdr.v1alpha1.LockServiceRenewRequest;
+import io.clusdr.v1alpha1.LockServiceRenewResponse;
+import io.clusdr.v1alpha1.RevokeRequest;
+import io.clusdr.v1alpha1.RevokeResponse;
 import io.clusdr.v1alpha1.UnlockRequest;
 import io.clusdr.v1alpha1.UnlockResponse;
 import io.clusdr.v1alpha1.WatchRequest;
@@ -466,12 +468,12 @@ final class FakeDaemon {
     }
 
     @Override
-    public void tryLock(LockRequest request, StreamObserver<LockResponse> obs) {
+    public void tryLock(TryLockRequest request, StreamObserver<TryLockResponse> obs) {
       Grant[] pair = table.acquireLock(request.getName(), request.getHolder(), ttlS(request.getTtlMs(), 15));
       Grant rec = pair[0];
       if (!CoordTable.ok(pair)) {
         obs.onNext(
-            LockResponse.newBuilder()
+            TryLockResponse.newBuilder()
                 .setAcquired(false)
                 .setMessage("held")
                 .setFencingToken(rec.token)
@@ -482,7 +484,7 @@ final class FakeDaemon {
         return;
       }
       obs.onNext(
-          LockResponse.newBuilder()
+          TryLockResponse.newBuilder()
               .setAcquired(true)
               .setFencingToken(rec.token)
               .setHolder(rec.holder)
@@ -504,7 +506,7 @@ final class FakeDaemon {
     }
 
     @Override
-    public void renew(RenewLockRequest request, StreamObserver<RenewLockResponse> obs) {
+    public void renew(LockServiceRenewRequest request, StreamObserver<LockServiceRenewResponse> obs) {
       try {
         Grant cur;
         synchronized (table) {
@@ -518,7 +520,7 @@ final class FakeDaemon {
                 request.getFencingToken(),
                 ttlS(request.getTtlMs(), reuse));
         obs.onNext(
-            RenewLockResponse.newBuilder()
+            LockServiceRenewResponse.newBuilder()
                 .setRenewed(true)
                 .setFencingToken(request.getFencingToken())
                 .setDeadlineUnixMs(rec.deadline)
@@ -538,12 +540,12 @@ final class FakeDaemon {
     }
 
     @Override
-    public void grant(GrantLeaseRequest request, StreamObserver<GrantLeaseResponse> obs) {
+    public void grant(GrantRequest request, StreamObserver<GrantResponse> obs) {
       Grant[] pair = table.grantLease(request.getName(), request.getOwner(), ttlS(request.getTtlMs(), 15));
       Grant rec = pair[0];
       if (!CoordTable.ok(pair)) {
         obs.onNext(
-            GrantLeaseResponse.newBuilder()
+            GrantResponse.newBuilder()
                 .setGranted(false)
                 .setMessage("held")
                 .setFencingToken(rec.token)
@@ -554,7 +556,7 @@ final class FakeDaemon {
         return;
       }
       obs.onNext(
-          GrantLeaseResponse.newBuilder()
+          GrantResponse.newBuilder()
               .setGranted(true)
               .setFencingToken(rec.token)
               .setOwner(rec.holder)
@@ -564,7 +566,7 @@ final class FakeDaemon {
     }
 
     @Override
-    public void renew(RenewLeaseRequest request, StreamObserver<RenewLeaseResponse> obs) {
+    public void renew(LeaseServiceRenewRequest request, StreamObserver<LeaseServiceRenewResponse> obs) {
       try {
         Grant cur;
         synchronized (table) {
@@ -578,7 +580,7 @@ final class FakeDaemon {
                 request.getFencingToken(),
                 ttlS(request.getTtlMs(), reuse));
         obs.onNext(
-            RenewLeaseResponse.newBuilder()
+            LeaseServiceRenewResponse.newBuilder()
                 .setRenewed(true)
                 .setFencingToken(request.getFencingToken())
                 .setDeadlineUnixMs(rec.deadline)
@@ -590,14 +592,14 @@ final class FakeDaemon {
     }
 
     @Override
-    public void revoke(RevokeLeaseRequest request, StreamObserver<RevokeLeaseResponse> obs) {
+    public void revoke(RevokeRequest request, StreamObserver<RevokeResponse> obs) {
       try {
         table.revokeLease(request.getName(), request.getOwner(), request.getFencingToken());
       } catch (IllegalStateException err) {
         obs.onError(Status.FAILED_PRECONDITION.withDescription(err.getMessage()).asRuntimeException());
         return;
       }
-      obs.onNext(RevokeLeaseResponse.newBuilder().setRevoked(true).build());
+      obs.onNext(RevokeResponse.newBuilder().setRevoked(true).build());
       obs.onCompleted();
     }
   }
