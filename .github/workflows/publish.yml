@@ -23,6 +23,7 @@ jobs:
   maven:
     name: Maven Central
     needs: [test]
+    if: ${{ !contains(github.ref_name, '-') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
