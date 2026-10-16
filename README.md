@@ -2,7 +2,7 @@
   <a href="https://clusdr.io/docs/sdk/java">
     <picture>
       <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/clusdr/clusdr-java/main/assets/java-lettermark-dark.svg">
-      <img src="https://raw.githubusercontent.com/clusdr/clusdr-java/main/assets/java-lettermark.svg" alt="clusdr Java" width="160" height="164">
+      <img src="https://raw.githubusercontent.com/clusdr/clusdr-java/main/assets/java-lettermark.svg" alt="clusdr Java" width="160" height="180">
     </picture>
   </a>
 </h1>
